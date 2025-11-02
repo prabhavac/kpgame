@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Flappy Bird - Gen-Z Edition</title>
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100%;
+    font-family: 'Comic Sans MS', cursive, sans-serif;
+}
+#preGameScreen {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: #87CEEB;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end; /* character touches floor */
+    padding: 50px;
+    box-sizing: border-box;
+}
+#character {
+    display: block;
+    object-fit: contain;
+    height: 95%; /* GTA5-style huge character */
+}
+#info {
+    text-align: right;
+}
+#info h1 {
+    margin: 0 0 20px 0;
+    font-size: 50px;
+}
+#info p {
+    margin: 10px 0;
+    font-size: 24px;
+}
+#playBtn {
+    padding: 15px 30px;
+    font-size: 28px;
+    cursor: pointer;
+    background-color: #ff4757;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    margin-top: 20px;
+}
+canvas {
+    display: none;
+    background: #87CEEB;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+}
+#restartBtn, #homeBtn {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 15px 30px;
+    font-size: 28px;
+    cursor: pointer;
+    background-color: #ff4757;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    display: none;
+    z-index: 2;
+}
+#restartBtn { top: 60%; }
+#homeBtn { top: 70%; }
+</style>
+</head>
+<body>
+
+<!-- Pre-game Screen -->
+<div id="preGameScreen">
+    <img id="character" src="chr.png" alt="Character">
+    <div id="info">
+        <h1>KP Chor Desh Chhod Game</h1>
+	<br>
+        <p>Follow me on:</p>
+        <p><a href="https://www.instagram.com/prabhavacharya101" target="_blank">Instagram</a></p>
+        <p><a href="https://www.facebook.com/chirag.acharya.3705" target="_blank">Facebook</a></p>
+        <p>Made by: Prabhav Acharya</p>
+        <button id="playBtn">Play</button>
+    </div>
+</div>
+
+<!-- Game Canvas -->
+<canvas id="gameCanvas"></canvas>
+<button id="restartBtn">Restart</button>
+<button id="homeBtn">Home</button>
+
+<!-- Audio -->
+<audio id="preGameMusic" src="pregame.mp3" loop></audio>
+
+<script>
+// Elements
+const preGameScreen = document.getElementById('preGameScreen');
+const playBtn = document.getElementById('playBtn');
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const restartBtn = document.getElementById('restartBtn');
+const homeBtn = document.getElementById('homeBtn');
+const preGameMusic = document.getElementById('preGameMusic');
+
+const bgMusic = new Audio('bgm.mp3'); bgMusic.loop = true;
+const deathMusic = new Audio('dying.mp3'); deathMusic.loop = true;
+
+let birdImg = new Image(); birdImg.src = 'bird.png';
+let deathImg = new Image(); deathImg.src = 'death.jpg';
+
+let bird, pillars, pillarWidth, gap, frame, score, gameOver, clouds;
+
+// Initialize Game
+function initGame() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    bird = { x:150, y:canvas.height/2, width:60, height:45, gravity:0.6, lift:-12, velocity:0 };
+    pillars = [];
+    pillarWidth = Math.min(80, canvas.width/10);
+    gap = Math.min(250, canvas.height/2);
+    frame = 0;
+    score = 0;
+    gameOver = false;
+    restartBtn.style.display = 'none';
+    homeBtn.style.display = 'none';
+    deathMusic.pause(); deathMusic.currentTime = 0;
+    bgMusic.currentTime = 0; bgMusic.play().catch(()=>{});
+
+    clouds = [];
+    for(let i=0;i<8;i++){
+        clouds.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height/2, size:50+Math.random()*50, speed:0.5+Math.random()*0.5});
+    }
+}
+
+// Resize character
+function resizeCharacter() {
+    const charImg = document.getElementById('character');
+    const maxHeight = window.innerHeight * 0.95;
+    charImg.style.height = maxHeight + 'px';
+}
+window.addEventListener('resize', resizeCharacter);
+resizeCharacter();
+
+// Controls
+document.addEventListener('keydown',()=>{if(!gameOver) bird.velocity=bird.lift;});
+canvas.addEventListener('touchstart',(e)=>{e.preventDefault();if(!gameOver) bird.velocity=bird.lift;});
+
+// Restart button
+restartBtn.addEventListener('click',()=>{
+    deathMusic.pause(); deathMusic.currentTime=0;
+    initGame(); loop();
+});
+
+// Home button
+homeBtn.addEventListener('click',()=>{
+    deathMusic.pause(); deathMusic.currentTime=0;
+    bgMusic.pause(); bgMusic.currentTime=0;
+
+    canvas.style.display='none';
+    preGameScreen.style.display='flex';
+    restartBtn.style.display='none';
+    homeBtn.style.display='none';
+
+    playPreGameMusic();
+});
+
+// Play button
+playBtn.addEventListener('click',()=>{
+    preGameMusic.pause();
+    preGameMusic.currentTime = 0;
+
+    preGameScreen.style.display='none';
+    canvas.style.display='block';
+    initGame(); loop();
+});
+
+// Pre-game music autoplay with mute trick
+function playPreGameMusic() {
+    preGameMusic.muted = true;
+    preGameMusic.play().then(()=>{ preGameMusic.muted = false; }).catch(()=>{});
+}
+
+// Call immediately on page load
+playPreGameMusic();
+
+// Game functions
+function drawBird(){ctx.drawImage(birdImg,bird.x,bird.y,bird.width,bird.height);}
+function drawClouds(){ctx.fillStyle='white';clouds.forEach(c=>{ctx.beginPath();ctx.arc(c.x,c.y,c.size*0.4,0,Math.PI*2);ctx.arc(c.x+c.size*0.3,c.y-c.size*0.2,c.size*0.3,0,Math.PI*2);ctx.arc(c.x+c.size*0.6,c.y,c.size*0.35,0,Math.PI*2);ctx.fill();c.x-=c.speed;if(c.x+c.size<0)c.x=canvas.width+c.size;});}
+function drawPillars(){for(let i=0;i<pillars.length;i++){let p=pillars[i];ctx.fillStyle='#228B22';ctx.fillRect(p.x,0,pillarWidth,p.top);ctx.fillStyle='#000';ctx.fillRect(p.x,canvas.height-p.bottom,pillarWidth,p.bottom);let letters=['G','E','N','Z'],padding=5;let spacingTop=Math.min((p.top-2*padding)/letters.length,35);ctx.fillStyle='white';ctx.font=`${Math.floor(spacingTop)}px Arial Black`;ctx.textAlign='center';for(let j=0;j<letters.length;j++)ctx.fillText(letters[j],p.x+pillarWidth/2,padding+spacingTop/2+j*spacingTop);let spacingBottom=Math.min((p.bottom-2*padding)/letters.length,35);ctx.font=`${Math.floor(spacingBottom)}px Arial Black`;for(let j=0;j<letters.length;j++)ctx.fillText(letters[j],p.x+pillarWidth/2,canvas.height-p.bottom+padding+spacingBottom/2+j*spacingBottom);}}
+function createPillar(){let topHeight=Math.floor(Math.random()*(canvas.height-gap-200))+100;let bottomHeight=canvas.height-gap-topHeight;pillars.push({x:canvas.width,top:topHeight,bottom:bottomHeight,passed:false});}
+function updatePillars(){for(let i=0;i<pillars.length;i++){pillars[i].x-=4;if(bird.x+bird.width>pillars[i].x && bird.x<pillars[i].x+pillarWidth && (bird.y<pillars[i].top || bird.y+bird.height>canvas.height-pillars[i].bottom))endGame();if(!pillars[i].passed && bird.x>pillars[i].x+pillarWidth){score++;pillars[i].passed=true;}}pillars=pillars.filter(p=>p.x+pillarWidth>0);}
+function endGame(){if(!gameOver){gameOver=true;restartBtn.style.display='block';homeBtn.style.display='block';bgMusic.pause();deathMusic.currentTime=0;deathMusic.play().catch(()=>{});}}
+function drawDeathScreen(){const imgWidth=300,imgHeight=300;ctx.drawImage(deathImg,(canvas.width-imgWidth)/2,canvas.height/2-imgHeight-20,imgWidth,imgHeight);}
+function drawScoreAndCredits(){ctx.fillStyle='black';ctx.font='40px Comic Sans MS';ctx.textAlign='left';ctx.fillText('Score: '+score,20,50);ctx.font='25px Comic Sans MS';ctx.fillText('Made By: Prabhav Acharya',20,canvas.height-20);}
+function loop(){ctx.clearRect(0,0,canvas.width,canvas.height);drawClouds();if(!gameOver){bird.velocity+=bird.gravity;bird.y+=bird.velocity;if(bird.y+bird.height>=canvas.height || bird.y<=0)endGame();drawBird();if(frame%120===0)createPillar();updatePillars();drawPillars();drawScoreAndCredits();frame++;requestAnimationFrame(loop);}else{drawBird();drawPillars();drawDeathScreen();drawScoreAndCredits();}}
+
+birdImg.onload = ()=>{deathImg.onload = ()=>{};}
+</script>
+
+</body>
+</html>
